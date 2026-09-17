@@ -5,15 +5,15 @@ import { generateAnswerMarkdown, parseProblemDocument } from "../src/lib/content
 
 const sourcePath = new URL("../02-自主勉強課題/01-Git/README.md", import.meta.url);
 
-test("現在のGit教材を4章・12問・12ヒントとして解析する", async () => {
+test("現在のGit教材を13章・39問・39ヒントとして解析する", async () => {
   const markdown = await readFile(sourcePath, "utf8");
   const document = parseProblemDocument("01-Git/README.md", markdown);
 
   assert.equal(document.title, "Git初心者向け学習問題");
-  assert.equal(document.chapters.length, 4);
-  assert.equal(document.problemCount, 12);
-  assert.equal(document.chapters.flatMap((chapter) => chapter.problems).filter((problem) => problem.hint).length, 12);
-  assert.equal(new Set(document.chapters.flatMap((chapter) => chapter.problems).map((problem) => problem.id)).size, 12);
+  assert.equal(document.chapters.length, 13);
+  assert.equal(document.problemCount, 39);
+  assert.equal(document.chapters.flatMap((chapter) => chapter.problems).filter((problem) => problem.hint).length, 39);
+  assert.equal(new Set(document.chapters.flatMap((chapter) => chapter.problems).map((problem) => problem.id)).size, 39);
 });
 
 test("回答Markdownへ問題文、ヒント、部分回答、未回答を含める", async () => {
@@ -28,7 +28,7 @@ test("回答Markdownへ問題文、ヒント、部分回答、未回答を含め
   assert.match(output, /ヒント/);
   assert.match(output, /\*\*自分の回答\*\*/);
   assert.match(output, /_未回答_/);
-  assert.equal((output.match(/#### 回答/g) ?? []).length, 12);
+  assert.equal((output.match(/#### 回答/g) ?? []).length, 39);
 });
 
 test("問題本文更新後も章・問題番号から作るIDは変化しない", async () => {

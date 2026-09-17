@@ -1,8 +1,9 @@
 # エージェント向けルール
 
-作業を始める前に、必ず `HANDOFF.md` を読むこと。
+作業内容に応じて、次の資料を確認すること。
 
-- 引き継ぎ状況の正本は `HANDOFF.md` の1ファイルだけとし、別の引き継ぎ資料を増やさない。
+- 利用方法と問題形式は `README.md` を確認する。
 - 要件は `REQUIREMENTS.md`、設計と実装方針は `IMPLEMENTATION_PLAN.md` を正本とする。
-- 隣接する `社内研修_AI特別版/preview/` は参照専用とし、変更しない。
+- 問題を追加・更新するときは `.claude/skills/creating-self-study-questions/SKILL.md` に従う。
 - 既存の問題Markdownと `.claude/skills/` を、明示的な指示なしに削除・上書きしない。
+- `answers/` には受講者の個人回答が保存されるため、明示的な指示なしに削除・上書きしない。
