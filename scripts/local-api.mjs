@@ -77,13 +77,16 @@ export function createApiHandler({ projectRoot, events, now }) {
         return sendJson(response, 415, { error: "JSON形式の保存要求のみ利用できます。" });
       }
       const body = await readJsonBody(request);
-      const answer = await saveAnswers({
+      const result = await saveAnswers({
         projectRoot,
         problemPath: body?.problemPath,
         answers: body?.answers,
         now: now?.() ?? new Date(),
       });
-      return sendJson(response, 201, { answer });
+      return sendJson(response, result.created ? 201 : 200, {
+        answer: result.answer,
+        operation: result.created ? "created" : "updated",
+      });
     } catch (error) {
       if (error instanceof ContentError) return sendJson(response, error.status, { code: error.code, error: error.message });
       console.error("ローカルAPIの処理に失敗しました。", error);

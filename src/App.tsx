@@ -234,7 +234,8 @@ export function App() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "回答を保存できませんでした。");
-      setNotice({ kind: "success", text: `回答を ${result.answer.path} へ保存しました。` });
+      const action = result.operation === "updated" ? "更新" : "保存";
+      setNotice({ kind: "success", text: `回答を ${result.answer.path} へ${action}しました。` });
       await reload(true);
     } catch (error) {
       setNotice({ kind: "error", text: error instanceof Error ? error.message : "回答を保存できませんでした。" });

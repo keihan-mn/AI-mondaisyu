@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { mkdir, open, readdir, readFile, stat } from "node:fs/promises";
+import { mkdir, open, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { generateAnswerMarkdown, parseProblemDocument } from "../src/lib/content.mjs";
 
@@ -115,16 +115,6 @@ function safeName(value, fallback = "教材") {
   return cleaned || fallback;
 }
 
-function localTimestamp(date) {
-  const parts = new Intl.DateTimeFormat("ja-JP", {
-    timeZone: "Asia/Tokyo",
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
-  }).formatToParts(date);
-  const take = (type) => parts.find((part) => part.type === type)?.value ?? "00";
-  return `${take("year")}${take("month")}${take("day")}-${take("hour")}${take("minute")}${take("second")}`;
-}
-
 export async function saveAnswers({ projectRoot, problemPath, answers, now = new Date() }) {
   if (typeof problemPath !== "string" || !problemPath || problemPath.includes("\\") || problemPath.startsWith("/") || problemPath.split("/").includes("..")) {
     throw new ContentError("INVALID_PATH", "問題ファイルの指定が正しくありません。");
@@ -140,11 +130,29 @@ export async function saveAnswers({ projectRoot, problemPath, answers, now = new
 
   const folderName = safeName(document.category);
   const materialName = safeName(document.title);
-  const answerDirectory = path.join(projectRoot, "answers", folderName);
+  const answersRoot = path.join(projectRoot, "answers");
+  const answerDirectory = path.join(answersRoot, folderName);
   await mkdir(answerDirectory, { recursive: true });
-  const baseName = `${materialName}-answer-${localTimestamp(now)}`;
   const markdown = generateAnswerMarkdown(document, validatedAnswers, now);
 
+  // 以前の日時付きファイルも含め、同じ教材の最新回答を引き継いで更新する。
+  const existingAnswer = (await loadAnswers(projectRoot))
+    .find((answer) => answer.sourcePath === document.path);
+  if (existingAnswer) {
+    const fullPath = path.join(answersRoot, ...existingAnswer.path.split("/"));
+    await writeFile(fullPath, markdown, { encoding: "utf8", mode: 0o600 });
+    return {
+      created: false,
+      answer: {
+        ...existingAnswer,
+        title: `${document.title} — 回答`,
+        savedAt: now.toISOString(),
+        markdown,
+      },
+    };
+  }
+
+  const baseName = `${materialName}-answer`;
   for (let sequence = 0; sequence < 10_000; sequence += 1) {
     const suffix = sequence === 0 ? "" : `-${String(sequence + 1).padStart(2, "0")}`;
     const fileName = `${baseName}${suffix}.md`;
@@ -154,18 +162,39 @@ export async function saveAnswers({ projectRoot, problemPath, answers, now = new
       handle = await open(fullPath, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY, 0o600);
       await handle.writeFile(markdown, "utf8");
       await handle.close();
-      const relativePath = path.relative(path.join(projectRoot, "answers"), fullPath).split(path.sep).join("/");
+      const relativePath = path.relative(answersRoot, fullPath).split(path.sep).join("/");
       return {
-        id: `answer-${Buffer.from(relativePath).toString("base64url")}`,
-        path: relativePath,
-        title: `${document.title} — 回答`,
-        sourcePath: document.path,
-        savedAt: now.toISOString(),
-        markdown,
+        created: true,
+        answer: {
+          id: `answer-${Buffer.from(relativePath).toString("base64url")}`,
+          path: relativePath,
+          title: `${document.title} — 回答`,
+          sourcePath: document.path,
+          savedAt: now.toISOString(),
+          markdown,
+        },
       };
     } catch (error) {
       await handle?.close().catch(() => {});
-      if (error?.code === "EEXIST") continue;
+      if (error?.code === "EEXIST") {
+        const existingMarkdown = await readFile(fullPath, "utf8");
+        if (answerSource(existingMarkdown) === document.path) {
+          await writeFile(fullPath, markdown, { encoding: "utf8", mode: 0o600 });
+          const relativePath = path.relative(answersRoot, fullPath).split(path.sep).join("/");
+          return {
+            created: false,
+            answer: {
+              id: `answer-${Buffer.from(relativePath).toString("base64url")}`,
+              path: relativePath,
+              title: `${document.title} — 回答`,
+              sourcePath: document.path,
+              savedAt: now.toISOString(),
+              markdown,
+            },
+          };
+        }
+        continue;
+      }
       throw error;
     }
   }
